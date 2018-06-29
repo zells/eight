@@ -1,3 +1,0 @@
-- no dish or fridge, only scopes
-- so we need a Display scope that just displays a Zell
-- the Zell decides how to display itself -> this is the representation
