@@ -1,0 +1,126 @@
+Hello. This is the third demo of the zells prototype number eight. 
+
+In the last demo, I showed how simple Signals can be sent directly to Zells. In this demo, I want show how to compose them into structured messages and have these dispatched dynamically to different receivers.
+
+So it's still a very basic use case that doesn't really do anything usefull but shows the underlying model.
+
+--------------
+
+As a quick recap: the basic unit is called "Zell".
+
+	zell := Zell new
+	
+It is similar to Actors in that it runs in its own process and can receive messages called "Signals". The difference is that Signals don't have to define a receiver and can be received concurrently.
+
+For example a zell can receive a text string.
+
+	zell receive: #foo
+	
+In order to see the received Signal, we can attach a socalled "Scope" to the Zell, in this case a TranscriptScope, which will ask the Zell about its received Signals and print them to the Transcript.
+
+	TranscriptScope new attachTo: zell
+	
+A Scope lets you see inside and manipulate a Zell. It's basically an Adapter pattern.
+
+----------------
+
+Let's do a slightly more interesting example with a TextZell.
+
+	zell := TextZell new
+	
+A TextZell contains a value which is currently an empty string [show in inspector].
+
+If we send it a string as before, nothing will happen except it is printed if we attach the TranscriptScope to it.
+
+	zell receive: #foo
+
+	TranscriptScope new attachTo: zell
+	
+In order to change the value, we need to send a structured Signal, a Messaage, consisting of a body with the instruction to set the value.
+
+	zell receive: {#body -> {#set -> #foo}}
+	
+A TextScope provides a simpler interface with the same effect,
+
+	scope := TextScope new attachTo: zell
+	scope set: #bar
+	
+translating our intent into a Message that the TextZell can understand [show in Transcript].
+
+-------------------
+
+So far we did everything in Smalltalk with text input. But Zells can also be interacted with graphically.
+
+	zell openInHand
+	scope openInHand
+
+This way, we can easily change the value of the TextZell, having our actions translated into Messages by the TextScope.
+
+We can also translate the Signals it receives into a graphical representation using a ListenerScope.
+
+	ListenerScope new openInHand
+	
+[change text, show messages]
+
+
+--------------------
+
+To see what these Messages contain, we take one and attach a ContainerScope to it.
+
+	ContainerScope new openInHand
+	
+It contains one Container named "body", so we attach another ContainerScope to that.
+
+We can now edit the next value we want to set the Text to and send it to the TextZell using an InboxScope which makes the Zell it's attached to receive whatever is dropped into it. [set it to "Berlin"]
+	
+	InboxScope new openInHand
+	
+----------------------
+
+This is how you can send a structured message directly to a Zell.	
+
+Now let's see how we can send Messages to Zells that we don't have direct access to. For example let's say this Berlin value here is the address of a person in our phone book. So we use the NameScope to name it "addr".
+	
+	NameScope new openInHand
+	
+And a person also has a number [clone "addr", name it "nr" and set it to 42].
+
+These two properties live in a Container with the name of the person.
+	
+	ContainerZell new openInHand
+
+[name Container "Alice" and move "addr" and "nr" into it]
+
+-----------------------
+
+Now let's make another person and put the two of them into our address book.
+
+[clone "Alice" to "Bob", change "nr", create Container "book" and move "Alice" and "Bob" into it]
+
+Now what I would like to do is change the properties of both or either of these by sending messages to the address book. For example we want to change the address to "Munich" [change "set" to "Munich"].
+
+But just sending our current message to it doesn't work because the book doesn't know what to do with it [clone message and drop into inbox].
+
+In order to reach the "addr" Zells, we need to specify who we're sending this message to. So we add a "to" value and set it to "addr".
+
+	TextZell new openInHand
+
+[name "to", set to "addr" and clone message into Inbox]
+
+Now if we send this to the "book", both "addr" change because both thought the Message was for them, since its receiver matched their names.
+
+------------------------
+
+If we want to change only one value, we need to be more specific. So let's change Alice's number to 345.
+
+[change "set" value to "345" and "to" to "Alice/nr"]
+
+Sending this to the book only changes Alice's number.
+
+[clone in Inbox]
+
+------------------------
+
+This concludes demo number three. It showed how to compose and send messages to specific Zells.
+
+Thank you very much for watching and stay tuned for more.
