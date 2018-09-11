@@ -1,0 +1,128 @@
+Hello. This is the fourth demo of the zells prototype number eight.
+
+I once again refined the computing model a bit so this demo mostly shows the new model. This means that almost all graphics you see are to visualize the model and do not represent a user interface.
+
+The computing model is inspired by the original model of Smalltalk with Objects or Actors running in their own processes. I call this basic unit a Node and the only thing a Node can do is receive bit stream which I call Signals.
+
+So let's create a Node
+
+	node := ZNode new
+	
+and let it receive a string.
+
+	node receive: #foo
+	
+Nothing happens. To make something happen, let's use a Node that prints everything it receives to the Transcript
+
+	node := ZTranscriptNode new
+	node receive: #foo
+	
+Let's visualize this Node.
+
+	node openInHand
+	
+--------------------------------
+
+So we can let a Node receive Signals directly. But different from in Smalltalk objects, Nodes usually live on something I call a Mesh, which is a network of connected Nodes.
+
+Let's build a Mesh consisting of the TranscriptNode and a sender.
+
+Since the sender is a MeshNode, it is able to connect to other Nodes though Channels.
+	
+	sender openChannel receiver: node
+	
+So now every Signal that the sender sends, the TranscriptNode receives.
+
+But as you can see, MeshNodes don't send plain Signals. Instead, they send Messages along with a unique ID.
+
+	sender send: #hello
+	
+The reason for this is that a Mesh broadcasts all Signals sent to it, so it's possible to receive the same Signal twice.
+
+Let's disconnect these two and create a couple of more Nodes to illustrate this.
+
+	ZMeshNode new openInHand
+	
+	"Create two MeshNodes, connect the sender to each and each to the TranscriptNode"
+	
+If I build a Mesh like this, every Signal I sent it received twice by the TranscriptNode.
+
+	sender send: #one
+	sender send: #two
+	
+But MeshNodes know about this and de-duplicate Signals based on their IDs. So if we put another MeshNode in front of the TranscriptNode, it will receive the Signals only once again.
+
+----------------------------------
+
+	"Delete the two middle Nodes"
+	
+Channels only transmit in one direction. So if we connect from the Mesh to the sender, it can't transmit anything.
+
+	"Connect middle Node to sender"
+	sender send: #one
+	
+But of course you can have Channels in both directions if you want.
+
+	"Connect sender to middle Node"
+	sender send: #one
+	
+---------------------------------
+
+To talk to a specific Node on the Mesh, we need to add a little bit more information to our messages. A MeshNode can have an Addresses that it uses to find out if a Message is meant for itself.
+
+Let's create an EchoNode with the Address "echo".
+
+	echo := ZEchoNode new openInHand address: #echo
+	
+An EchoNode sends all Messages it receives back to the sender. So the sender needs an Address as well.
+
+	sender address: #sender
+	
+Now the sender can send Messages to "echo" and receive the echo.
+
+	sender sendContent: #hello to: #echo
+
+If we send a Message to any other receiver, "echo" will ignore it.
+
+	sender sendContent: #hello to: #any
+	
+---------------------------------
+
+If we want to do something with the reply, we can send it to a Node with a dynamically defined behavior, a DynamicNode.
+
+	reply := ZDynamicNode new openInHand address: #sender/reply
+	
+Let's print the echo in uppercase to the Transcript
+	
+	reply reaction: [:message|Transcript print: (message detect: [:e|e key = #content]) value asUppercase; cr]
+
+Since this is a probably a common operation, a MeshNode provides a method with the same functionality
+
+	sender sendContent: #hello to: #echo withReply: [:message|
+		Transcript print: (message detect: [:e|e key = #content]) value asUppercase; cr]
+	
+The method creates a Node - in this case "sender/replyXYZ" - with the sole purpose to receive the reply and deletes it once it's fulfilled.
+
+--------------------------------
+
+	ZTextNode new openInHand address: #text
+
+	sender sendContent: {#set -> #bar} to: #text
+	
+	ZTextPortal new openInHand
+	
+	"Change text of 'text'"
+	
+	ZContainerNode new openInHand address: #msg
+	
+	"Copy Nodes 'text'->'to', 'msg'->'content', 'to'->'set'"
+	
+	"Change value of 'to' to 'text' and 'set' to 'hello'"
+
+	ZContainerPortal new openInHand address: #container
+	
+	"Add 'to' and 'content' to 'msg' and 'set' to 'content'"
+
+	ZSenderPortal new openInHand address: #out
+	
+	"Drop 'msg' into 'out'"
