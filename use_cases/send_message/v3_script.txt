@@ -1,128 +1,262 @@
-Hello. This is the fourth demo of the zells prototype number eight.
+Hello. This is demo four of the zells prototype number eight.
 
-I once again refined the computing model a bit so this demo mostly shows the new model. This means that almost all graphics you see are to visualize the model and do not represent a user interface.
+Since the last demo, I once again refined the computing model a bit so this demo mostly shows the new model.
 
-The computing model is inspired by the original model of Smalltalk with Objects or Actors running in their own processes. I call this basic unit a Node and the only thing a Node can do is receive bit stream which I call Signals.
+This means that almost all graphics you see here are merely to visualize the model and do not represent a user interface.
+
+The computing model is inspired by the original model of Smalltalk with Objects or Actors running in their own processes. 
+
+-----------------------------
+
+I call this basic building block a Node and the only thing a Node can do is receive bit streams, which I call Signals.
 
 So let's create a Node
 
 	node := ZNode new
-	
+
 and let it receive a string.
 
 	node receive: #foo
-	
-Nothing happens. To make something happen, let's use a Node that prints everything it receives to the Transcript
+
+not much happens.
+
+To make something happen, I can use a Node that prints everything it receives to the Transcript, called a TranscriptNode
 
 	node := ZTranscriptNode new
+
+Now when it receives a Signal
+
 	node receive: #foo
-	
+
+it is printed to the Transcript.
+
 Let's visualize this Node.
 
 	node openInHand
-	
+
 --------------------------------
 
-So we can let a Node receive Signals directly. But different from in Smalltalk objects, Nodes usually live on something I call a Mesh, which is a network of connected Nodes.
+So I can let a Node receive Signals directly. But different from in Smalltalk objects, Nodes aren't stored under a name in memory, but live on something called a Mesh, which is a network of connected Nodes.
 
 Let's build a Mesh consisting of the TranscriptNode and a sender.
 
+	sender := ZMeshNode new openInHand
+
 Since the sender is a MeshNode, it is able to connect to other Nodes though Channels.
-	
-	sender openChannel receiver: node
-	
+
+Let's open a Channel with the TranscriptNode as its receiver.
+
+	channel := sender openChannel receiver: node
+
 So now every Signal that the sender sends, the TranscriptNode receives.
 
-But as you can see, MeshNodes don't send plain Signals. Instead, they send Messages along with a unique ID.
-
 	sender send: #hello
-	
-The reason for this is that a Mesh broadcasts all Signals sent to it, so it's possible to receive the same Signal twice.
 
-Let's disconnect these two and create a couple of more Nodes to illustrate this.
+But as you can see, when I send "hello", what is actually sent is a structure consisting of an ID and a Message.
 
-	ZMeshNode new openInHand
-	
-	"Create two MeshNodes, connect the sender to each and each to the TranscriptNode"
-	
-If I build a Mesh like this, every Signal I sent it received twice by the TranscriptNode.
+The reason for this is that Signals are broad-casted through a Mesh, so I use an ID to avoid receiving the same Signal twice.
+
+--------------------------------
+
+Let's close this channel and extend our Mesh a bit to illustrate this.
+
+	"Clone the sender to 2 MeshNodes, connect the sender to both, and both to the TranscriptNode"
+
+If I build a Mesh like this, with the sender connected to these two Nodes, and both connected to the TranscriptNode, every Signal the sender sends now is received twice by the TranscriptNode.
 
 	sender send: #one
 	sender send: #two
-	
-But MeshNodes know about this and de-duplicate Signals based on their IDs. So if we put another MeshNode in front of the TranscriptNode, it will receive the Signals only once again.
+
+But MeshNodes know about this and de-duplicate Signals based on their IDs. So if I put another Node in front of the TranscriptNode, and connect them like this, 
+
+	"Delete Channels connected to TranscriptNode, clone another MeshNode, connect the two Nodes to it, and it to the TranscriptNode"
+
+it will receive the Signals only once again.
+
+	sender send: #foo
 
 ----------------------------------
 
-	"Delete the two middle Nodes"
-	
-Channels only transmit in one direction. So if we connect from the Mesh to the sender, it can't transmit anything.
+Channels only transmit Signals in one direction.
+
+	"Delete the two Nodes not connected to Transcript"
+
+So if I connect from the Mesh to the sender, it can't transmit anything.
 
 	"Connect middle Node to sender"
+
 	sender send: #one
-	
+
 But of course you can have Channels in both directions if you want.
 
 	"Connect sender to middle Node"
 	sender send: #one
-	
+
 ---------------------------------
 
-To talk to a specific Node on the Mesh, we need to add a little bit more information to our messages. A MeshNode can have an Addresses that it uses to find out if a Message is meant for itself.
+Now what if I want to send a Message to only a single Node in a Mesh?
 
-Let's create an EchoNode with the Address "echo".
+Since Signals are broad-casted to every Node in a Mesh, I need to add a little bit more information to my Messages in that case.
 
-	echo := ZEchoNode new openInHand address: #echo
-	
-An EchoNode sends all Messages it receives back to the sender. So the sender needs an Address as well.
+Let's say I want to talk to an EchoNode, and receive its reply.
+
+	echo := ZEchoNode new openInHand
+
+To know who to send a Message to, the EchoNode needs an Address.
+
+	echo address: #echo
+
+And so the EchoNode knows who to reply to, the sender needs an Address as well.
 
 	sender address: #sender
+
+Now if I connect "echo" to the Mesh, 
 	
-Now the sender can send Messages to "echo" and receive the echo.
+	"Connect 'echo' to middle Node both ways"
+
+the sender can send Messages with content and receiver to "echo" and receive the reply, 
 
 	sender sendContent: #hello to: #echo
+	
+which is both received by the TranscriptNode as well.
 
-If we send a Message to any other receiver, "echo" will ignore it.
+If I send a Message to any other receiver, 
 
 	sender sendContent: #hello to: #any
 	
+"echo" will ignore it and not reply.
+
 ---------------------------------
 
-If we want to do something with the reply, we can send it to a Node with a dynamically defined behavior, a DynamicNode.
+If I want to do something with the reply, I can make "echo" send it to a different Node, by changing the "from" Address of the Message.
 
-	reply := ZDynamicNode new openInHand address: #sender/reply
-	
-Let's print the echo in uppercase to the Transcript
-	
-	reply reaction: [:message|Transcript print: (message detect: [:e|e key = #content]) value asUppercase; cr]
+	sender sendContent: #hello to: #echo from: #replyHere
 
-Since this is a probably a common operation, a MeshNode provides a method with the same functionality
+Now "echo" will send its reply to this Address.
+
+All I need now is a Node which I can tell how to react to received Messages. That's a DynamicNode.
+
+	reply := ZDynamicNode new openInHand address: #replyHere
+
+	"Open Channel from sender"
+
+Let's tell that Node that its reaction is to print the echoed Message in uppercase to the Transcript
+
+	reply reaction: [:message|Transcript show: message asString asUppercase; cr]
+
+Now the reply is received by this Node which reacts as instructed.
+
+	sender sendContent: #hello to: #echo from: #replyHere
+	
+---------------------------------
+	
+Since sending a Message and processing the reply is a common operation, a MeshNode provides a method for that. So we don't need this Node anymore.
+
+	"Delete 'replyHere'"
+
+Instead I can tell the sender directly what to do with the reply. Let's also reverse it this time.
 
 	sender sendContent: #hello to: #echo withReply: [:message|
-		Transcript print: (message detect: [:e|e key = #content]) value asUppercase; cr]
-	
-The method creates a Node - in this case "sender/replyXYZ" - with the sole purpose to receive the reply and deletes it once it's fulfilled.
+		Transcript show: message asString asUppercase reversed; cr]
+
+This method creates a new Node - in this case "sender/replyXYZ" - with the sole purpose of receiving and reacting to the reply. So it's immediately deleted once it has fulfilled that purpose.
 
 --------------------------------
 
-	ZTextNode new openInHand address: #text
+So far, none of the Nodes I've used had any state. So let's look how to deal with a state-full Node, for example one that contains a text value.
 
-	sender sendContent: {#set -> #bar} to: #text
-	
-	ZTextPortal new openInHand
-	
-	"Change text of 'text'"
-	
+	text := ZTextNode new openInHand address: #text
+
+I can change the value of this TextNode, by sending it a Message with the new value and making sure it can receive it.
+
+	"Delete 'echo', put 'text' in its place and open channel to it"
+
+	sender sendContent: {#set -> #foo} to: #text
+
+---------------------------------
+
+There is also a UI element which lets me do this, called TextPortal.
+
+	portal := ZTextPortal new openInHand
+
+Portals are Nodes themselves so they can be connected to other Nodes with Channels.
+
+	"Connect to center Node"
+
+It's the job of a Portal to translate a user intent into messages. So if I want to change the text value, first I need to point the Portal at the receiver
+
+	portal pointAt: #text
+
+and then tell it to set the text to a different value
+
+	portal setText: #bar
+
+I can also do this using the graphical UI element
+
+	"Change text of 'text' to 'foo'"
+
+-----------------------------------
+
+The last thing I would like to show you is how to build a Message like this one with Nodes.
+
+A Message is a structure containing things which can be created using ContainerNodes. So let's create a Container representing the Message we want to send.
+
 	ZContainerNode new openInHand address: #msg
-	
+
+The Message has one text value named "to", and another container named "content" which again contains a text named "set". I can create these elements by cloning existing Nodes.
+
 	"Copy Nodes 'text'->'to', 'msg'->'content', 'to'->'set'"
-	
+
+Now that I have all of my parts for the Message, I need to make sure they can talk to each other.
+
+So I connect them all with this Node, creating a new Mesh.
+
+	"Clone center Node and connect all Nodes both ways"
+
+Now that they are connected, I can change the text value with a TextPortal.
+
 	"Change value of 'to' to 'text' and 'set' to 'hello'"
 
+----------------------------------
+
+Note that so far, I don't have created the structure of the Message. I only created the parts and connected them.
+
+To build the structure, I can use a ContainerPortal.
+
 	ZContainerPortal new openInHand address: #container
-	
+
+I connect the Portal to my little side mesh here, point it at "msg" and add "to" and "content" to it.
+
 	"Add 'to' and 'content' to 'msg' and 'set' to 'content'"
+
+As you can see, the Addresses of both Nodes change as they are added to the Container, because Containers are name spaces.
+
+So if I change its name, the names of its inhabitants change as well. But let's keep it short.
+
+	"Change 'msg' to 'message' and back"
+
+To complete the Message, I need to put "set" into "content".
+
+----------------------------------
+
+Now that the message has its correct structure, I can send it using a SenderPortal
+	
+	"Delete ContainerPortal"
 
 	ZSenderPortal new openInHand address: #out
 	
+All I need to do is connect it to the Mesh that the Message is on and the Mesh that the Receiver is on
+
+	"Connect to 'msg' Mesh both ways, and one-way to other Mesh"
+
+and then I can send the Message by giving its Address to the SenderPortal.
+
 	"Drop 'msg' into 'out'"
+	
+and this causes quite a bit of commotion but eventually the text of the receiver changes.
+
+If we look at the Transcript we see that the SenderPortal asks "msg" to turn itself into a Message, which asks its inhabitants and so on. The result of all is then sent to the SenderPortal which sends its content as a Message.
+
+-----------------------------------
+
+That's all for today. Thank you very much for watching and stay tuned for more.
