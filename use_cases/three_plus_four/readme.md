@@ -30,3 +30,26 @@ The use case is basically a conversation:
 	
 	numbers/3: What is the sum of you and numbers/4?
 	-> numbers/7
+	
+
+In Messages:
+
+	< (from: me, please: showYourself)
+	
+	> (to: me, please: (askMe: (from: me, to: numbers, please: sendYourMessages)))
+	
+	< (from: me, to: numbers, please: sendYourMessages)
+	
+	> (to: me, please: (askMe: (from: me, to: numbers, please: sendYourParts)))
+	
+	< (from: me, to: numbers, please: sendYourParts)
+	
+	> (to: me, please: (knowMyParts: (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))
+
+	< (from: me, to: numbers.3, please: sendYourMessages)
+	
+	> (to: me, please: (askMe: (from: me, to: numbers.3, please: (add: numbers.7))))
+
+	< (from: me, to: numbers.3, please: (add: numbers.4))
+	
+	> (to: me, please: (knowTheSum: 7))
