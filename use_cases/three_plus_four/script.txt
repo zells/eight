@@ -1,0 +1,93 @@
+Hi. This is demo 5 of the zells prototype number 8.
+
+In this demo, I want to show the first actually almost useful use case. And follwing good old Smalltalk tradition, it's gonna be adding the numbers 3 and 4.
+
+The user interface is pretty terrible and far from even the lowest usability standards but I hope it's enough so you can follow along.
+
+But if something seems too confusing, you might wanna try to watch one or two of the previous demos.
+
+------------------------------------
+
+So let's jump right in by creating a Node which will represent our Mesh.
+
+	ZMeshNode new openInHand
+	
+Now I need some kind of user interface to send and receive Messages to and from the Mesh. For this I use a Transceiver Portal with the Address "me" and connect it to the Node.
+	
+	me := ZTransceiverPortal new openInHand address: {#me}
+
+I can use the Portal to send Messages, for example I can just send a string
+
+	me send: #hello
+	
+and it will show everything I have sent on the right side.
+
+But I can also send Messages with a receiver Address.
+
+	me send: {#hello . #to -> {#you} . #from -> {#me}}asSet
+	
+If I send this it will also display it but in a structured way.
+	
+-----------------------------------
+	
+If I want to receive that Message I need a second Transceiver with the name "you"  and connect that to the Node.
+
+	"Clone Transceiver and change address"
+
+Now I can send Message back and forth.
+	
+	"send Message again"
+
+The other Transceiver shows the received Message on the left side. It considers itself the intended receiver of that Message because the receiver Address matches its own.
+
+I can take that Message, change the receiver and send it right back.
+
+	"Switch 'to' and 'from' and send with 'you'"
+	
+-------------------------------------
+
+So that's the basic mechanics of how you send and receive Messages. Now let's see how I can calculate the result of 3 + 4.
+
+First let's make some room.
+
+	"Delete 'you' and make 'me' wider"
+
+Now I need a Node that knows how to add numbers. Which is the NumbersNode.
+	
+	ZNumbersNode new openInHand
+
+-------------------------------------
+
+Now let's assume I don't know know what the Message looks like that adds two numbers.
+
+Since I have a dynamic system in front of me, I can use it to discover what I need to know.
+
+I start this discovery with a Message that asks all Nodes to show themselves.
+
+	me send: {#from -> {#me} . #please -> #showYourself} asSet
+
+-------------------------------------
+
+Since there is only one other Node, I only get one reply. This contains a Message that I can use to find out more about it.
+
+So I take it and send it right back.
+
+Now I get another reply with again an example Message that I can use to ask "numbers" to send its parts.
+
+Let's send that.
+
+And the next reply contains all the numbers which are part of "numbers".
+
+-----------------------------------
+
+To find out what one of these numbers can do, I grab the "sendYourMessages" Messages and change its receiver to "numbers.3"
+
+Sending this gets me a reply from "numbers.3" containing another example Message that adds seven.
+
+Since I want to add 4, I take it, change the operand, and send it.
+
+------------------------------------
+
+And that's how you calculate 3 + 4. At least in the current version of the prototype.
+
+Thank you very much for watching and stay tuned for more.
